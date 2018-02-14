@@ -41,7 +41,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --with-stream \
     --with-stream_ssl_module \
     --with-threads \
-    --add-module=/tmp/incubator-pagespeed-ngx-latest-stable \
+    --add-module=/tmp/incubator-pagespeed-ngx-${NPS_VERSION}-stable \
     "
 ARG RESTY_CONFIG_OPTIONS_MORE=""
 
@@ -77,6 +77,7 @@ RUN set -x \
         libpcre3 \
         libpcre3-dev \
         uuid-dev \
+        apt-utils \
     && cd /tmp \
     && curl -fSL https://www.openssl.org/source/openssl-${RESTY_OPENSSL_VERSION}.tar.gz -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
