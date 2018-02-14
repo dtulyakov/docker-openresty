@@ -3,14 +3,15 @@
 
 FROM ubuntu:xenial
 
-LABEL maintainer="Evan Wies <evan@neomantra.net>"
+#LABEL maintainer="Evan Wies <evan@neomantra.net>"
 
 # Docker Build Arguments
 ARG RESTY_VERSION="1.13.6.1"
+ARG NPS_VERSION="1.13.35.2"
 ARG RESTY_LUAROCKS_VERSION="2.4.3"
 ARG RESTY_OPENSSL_VERSION="1.0.2k"
 ARG RESTY_PCRE_VERSION="8.41"
-ARG RESTY_J="1"
+ARG RESTY_J="4"
 ARG RESTY_CONFIG_OPTIONS="\
     --with-file-aio \
     --with-http_addition_module \
@@ -40,19 +41,22 @@ ARG RESTY_CONFIG_OPTIONS="\
     --with-stream \
     --with-stream_ssl_module \
     --with-threads \
+    --add-module=/tmp/incubator-pagespeed-ngx-latest-stable \
     "
 ARG RESTY_CONFIG_OPTIONS_MORE=""
 
 # These are not intended to be user-specified
 ARG _RESTY_CONFIG_DEPS="--with-openssl=/tmp/openssl-${RESTY_OPENSSL_VERSION} --with-pcre=/tmp/pcre-${RESTY_PCRE_VERSION}"
 
+ADD incubator-pagespeed-ngx-latest-stable.tar /tmp/
 
 # 1) Install apt dependencies
-# 2) Download and untar OpenSSL, PCRE, and OpenResty
+# 2) Download and untar OpenSSL, PCRE, and OpenResty, Apache SpeedPage
 # 3) Build OpenResty
 # 4) Cleanup
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+RUN set -x \
+    && DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         build-essential \
         ca-certificates \
@@ -68,11 +72,24 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
         perl \
         unzip \
         zlib1g-dev \
+        libexpat-dev \
+        libluajit-5.1-dev \
+        libmhash-dev \
+        libmsgpack-dev \
+        libpcre3 \
+        libpcre3-dev \
+        uuid-dev \
     && cd /tmp \
     && curl -fSL https://www.openssl.org/source/openssl-${RESTY_OPENSSL_VERSION}.tar.gz -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && curl -fSL https://ftp.pcre.org/pub/pcre/pcre-${RESTY_PCRE_VERSION}.tar.gz -o pcre-${RESTY_PCRE_VERSION}.tar.gz \
     && tar xzf pcre-${RESTY_PCRE_VERSION}.tar.gz \
+    && curl -fSL https://github.com/apache/incubator-pagespeed-ngx/archive/v${NPS_VERSION}-stable.tar.gz -o v${NPS_VERSION}-stable.tar.gz \
+    && tar xzf v${NPS_VERSION}-stable.tar.gz \
+    && cd incubator-pagespeed-ngx-${NPS_VERSION}-stable \
+    && curl -fSL https://dl.google.com/dl/page-speed/psol/${NPS_VERSION}-x64.tar.gz -o ${NPS_VERSION}-x64.tar.gz \
+    && tar xzf ${NPS_VERSION}-x64.tar.gz \
+    && cd /tmp \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd /tmp/openresty-${RESTY_VERSION} \
@@ -96,7 +113,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && make build \
     && make install \
     && cd /tmp \
-    && rm -rf luarocks-${RESTY_LUAROCKS_VERSION} luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
+    && rm -rf luarocks-${RESTY_LUAROCKS_VERSION} luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz incubator-pagespeed-ngx-${NPS_VERSION}-stable \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && ln -sf /dev/stdout /usr/local/openresty/nginx/logs/access.log \
     && ln -sf /dev/stderr /usr/local/openresty/nginx/logs/error.log
